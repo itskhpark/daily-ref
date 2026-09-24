@@ -1,4 +1,4 @@
-// Daily Ref ver2.0 — GitHub Pages + Supabase
+// Daily Ref ver2.1 — GitHub Pages + Supabase
 (() => {
 const CFG = window.DAILY_REF_CONFIG;
 const sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, {
@@ -441,7 +441,7 @@ function openDetail(id) {
     </div>
     <div class="sheet-foot">
       <div class="d-row">
-        ${link ? `<a class="btn-dark" href="${esc(link)}" target="_blank" rel="noopener">${isMail ? "Gmail에서 열기" : "원문 열기"} ↗</a>` : ""}
+        ${link ? `<a class="btn-dark" href="${esc(link)}" target="_blank" rel="noopener">${domain(link) === "Gmail" ? "Gmail에서 열기" : "원문 열기"} ↗</a>` : ""}
         <button class="btn-line" type="button" data-dstar>${r.starred ? "★ 중요 해제" : "☆ 중요 표시"}</button>
         <button class="btn-line" type="button" data-edit>수정</button>
         <button class="btn-line" type="button" data-del>삭제</button>
