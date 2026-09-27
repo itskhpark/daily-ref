@@ -1,4 +1,4 @@
-// Daily Ref ver2.1 — GitHub Pages + Supabase
+// Daily Ref ver2.2 — GitHub Pages + Supabase
 (() => {
 const CFG = window.DAILY_REF_CONFIG;
 const sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, {
@@ -109,12 +109,14 @@ function metaHtml(r, { star = false, showDomain = true } = {}) {
   const parts = [];
   if (star && r.starred) parts.push('<span class="badge-imp">중요</span>');
   if (r.source === "gmail") parts.push('<span class="src-mail">메일</span>');
+  if (isDigest(r)) parts.push(`<span class="src-mail">기사 ${r.links.length}</span>`);
   const who = r.source === "gmail" ? (r.sender || "") : (showDomain ? (domain(r.url || "") || "") : "");
   if (who) parts.push(`<span class="dom">${esc(who)}</span><span>·</span>`);
   parts.push(`<span>${fmtDate(r.createdAt)}</span>`);
   return `<div class="meta">${parts.join("")}</div>`;
 }
 const noteOf = r => r.note || r.snippet || "";
+const isDigest = r => Array.isArray(r.links) && r.links.length >= 2;
 
 function renderAll() {
   const all = S.refs, vis = all.filter(matches);
@@ -420,11 +422,32 @@ function openForm(existing, presetCat) {
   });
 }
 
+/* ---------- 모음형 뉴스레터: 기사 골라 저장 ---------- */
+async function savePicked(r, items) {
+  const rows = items.map(l => ({
+    title: String(l.title || "기사").slice(0, 300),
+    url: safeUrl(l.url) || null,
+    image_url: safeUrl(l.image || "") || null,
+    category_id: r.category_id,
+    tags: r.tags || [],
+    sender: r.sender || null,
+    source: "manual",
+    starred: false,
+  }));
+  const { error } = await sb.from("refs").insert(rows);
+  if (error) throw error;
+  const del = await sb.from("refs").delete().eq("id", r.id); // 원래 뉴스레터는 정리 (Gmail 메일은 그대로)
+  if (del.error) throw del.error;
+  await load();
+  toast(`기사 ${rows.length}개를 저장하고 뉴스레터를 정리했어요`);
+}
+
 /* ---------- detail ---------- */
 function openDetail(id) {
   const r = S.refs.find(x => x.id === id); if (!r) return;
   const c = catById(r.category_id), src = imgSrc(r), link = safeUrl(r.url || "");
   const isMail = r.source === "gmail";
+  const picked = new Set();
   openSheet(`
     <div class="sheet-head"><h3 style="font-size:14px;font-weight:500;color:var(--grey-1)">${esc(c ? c.name : "분류 없음")} · ${fmtDate(r.createdAt)}</h3>
       <button class="x" type="button" data-close aria-label="닫기">✕</button></div>
@@ -435,13 +458,24 @@ function openDetail(id) {
         <h2 class="d-title">${esc(r.title)}</h2>
       </div>
       ${r.note ? `<p class="d-note">${esc(r.note)}</p>` : ""}
-      ${isMail && r.snippet ? `<div class="field"><span class="lbl">본문 미리보기</span><p class="quote">${esc(r.snippet)}</p></div>` : ""}
+      ${isDigest(r) ? `<div class="field"><span class="lbl">이 뉴스레터의 기사 ${r.links.length}개<span class="opt">보고 싶은 기사만 골라 저장하세요</span></span>
+        <div class="picks" id="picks">${r.links.map((l, i) => `
+          <div class="pick" data-i="${i}">
+            <button type="button" class="pick-sel" role="checkbox" aria-checked="false" data-pick="${i}">
+              <span class="box" aria-hidden="true"></span>
+              ${l.image ? `<span class="pthumb"><img src="${esc(safeUrl(l.image))}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></span>` : ""}
+              <span class="ptitle">${esc(l.title)}</span>
+            </button>
+            ${safeUrl(l.url) ? `<a class="popen" href="${esc(safeUrl(l.url))}" target="_blank" rel="noopener" aria-label="${esc(l.title)} 열기">열기 ↗</a>` : ""}
+          </div>`).join("")}</div></div>` : ""}
+      ${isMail && r.snippet && !isDigest(r) ? `<div class="field"><span class="lbl">본문 미리보기</span><p class="quote">${esc(r.snippet)}</p></div>` : ""}
       ${tagsHtml(r)}
       <div id="dconfirm"></div>
     </div>
     <div class="sheet-foot">
+      ${isDigest(r) ? `<button class="cta" type="button" id="savePicks" disabled>기사를 골라 주세요</button>` : ""}
       <div class="d-row">
-        ${link ? `<a class="btn-dark" href="${esc(link)}" target="_blank" rel="noopener">${domain(link) === "Gmail" ? "Gmail에서 열기" : "원문 열기"} ↗</a>` : ""}
+        ${link ? `<a class="btn-dark" href="${esc(link)}" target="_blank" rel="noopener">${domain(link) === "Gmail" ? "Gmail에서 열기" : isDigest(r) && !r.links.some(l => l.url === r.url) ? "뉴스레터 웹 버전" : "원문 열기"} ↗</a>` : ""}
         <button class="btn-line" type="button" data-dstar>${r.starred ? "★ 중요 해제" : "☆ 중요 표시"}</button>
         <button class="btn-line" type="button" data-edit>수정</button>
         <button class="btn-line" type="button" data-del>삭제</button>
@@ -450,6 +484,20 @@ function openDetail(id) {
     sheet.addEventListener("click", async e => {
       const t = e.target.closest("button"); if (!t) return;
       if (t.matches("[data-close]")) closeSheet();
+      else if (t.dataset.pick !== undefined) {
+        const i = +t.dataset.pick;
+        picked.has(i) ? picked.delete(i) : picked.add(i);
+        t.setAttribute("aria-checked", picked.has(i));
+        const b = $("#savePicks");
+        b.disabled = !picked.size;
+        b.textContent = picked.size ? `기사 ${picked.size}개 저장하고 뉴스레터 정리` : "기사를 골라 주세요";
+      }
+      else if (t.id === "savePicks") {
+        if (!picked.size) return;
+        t.disabled = true; t.textContent = "저장하는 중…";
+        try { await savePicked(r, [...picked].sort((a, b) => a - b).map(i => r.links[i])); closeSheet(); }
+        catch (err) { console.error(err); t.disabled = false; t.textContent = "다시 시도하기"; $("#dconfirm").innerHTML = `<div class="err">저장하지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.</div>`; }
+      }
       else if (t.matches("[data-edit]")) { closeSheet(); openForm(r); }
       else if (t.matches("[data-dstar]")) { closeSheet(); toggleStar(r.id); }
       else if (t.dataset.tag) { S.tag = t.dataset.tag; closeSheet(); render(); }

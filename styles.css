@@ -327,3 +327,20 @@ button.tag:hover{background:var(--hairline);color:var(--charcoal)}
 .btn-google:hover{border-color:var(--grey-3)}
 .ok{font-size:14px;color:var(--charcoal);background:var(--action-soft);padding:12px 14px;border-radius:var(--r-card);line-height:1.6}
 .boot{min-height:60vh;display:grid;place-items:center;color:var(--grey-2);font-size:14px}
+
+/* ---------- v2.2: 모음형 뉴스레터 기사 고르기 ---------- */
+.picks{display:flex;flex-direction:column;border:1px solid var(--hairline);border-radius:var(--r-card);overflow:hidden}
+.pick{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--hairline);padding-right:10px}
+.pick:last-child{border-bottom:0}
+.pick-sel{flex:1;min-width:0;display:flex;align-items:center;gap:12px;padding:10px 12px;border:0;background:none;text-align:left}
+.pick-sel:hover{background:var(--tint)}
+.pick-sel .box{flex:none;width:20px;height:20px;border:1.5px solid var(--border);border-radius:var(--r-micro);display:grid;place-items:center;transition:background var(--fast),border-color var(--fast)}
+.pick-sel[aria-checked="true"] .box{background:var(--action);border-color:var(--action)}
+.pick-sel[aria-checked="true"] .box::after{content:"";width:10px;height:6px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}
+.pick:has([aria-checked="true"]){background:var(--action-soft)}
+.pick:has([aria-checked="true"]) .pick-sel:hover{background:transparent}
+.pthumb{flex:none;width:56px;height:56px;border-radius:var(--r-card);overflow:hidden;background:var(--tint-2)}
+.pthumb img{width:100%;height:100%;object-fit:cover;display:block}
+.ptitle{font-size:14px;color:var(--charcoal);line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.popen{flex:none;font-size:12px;color:var(--grey-1);text-decoration:none;padding:6px 8px;border-radius:var(--r-card)}
+.popen:hover{background:var(--tint-2);color:var(--ink)}
